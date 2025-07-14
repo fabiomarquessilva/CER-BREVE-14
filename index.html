@@ -1,0 +1,763 @@
+import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, collection, addDoc, query, where, onSnapshot, doc, setDoc, getDoc, getDocs } from 'firebase/firestore';
+
+// --- Configuração dos Projetos e Perguntas ---
+const projectConfig = {
+  idosos: {
+    name: "Idosos Institucionalizados (Abrigo Lucas Zorn)",
+    whatsapp: "5584994420139", // Número do professor formatado para API do WhatsApp
+    color: "green",
+    bgColor: "bg-green-50",
+    textColor: "text-green-800",
+    buttonColor: "bg-green-600",
+    buttonHoverColor: "hover:bg-green-700",
+    borderColor: "border-green-600",
+    intro: "Vou te fazer umas perguntas bem simples sobre sua fé ou sua ligação com Deus, tá certo? Não tem resposta certa ou errada, é só o que você sente, tá bom?",
+    questions: [
+        { id: 1, original: "Você procurou uma ligação maior com Deus?", adaptada: "O(a) senhor(a) sentiu vontade de se aproximar mais de Deus, conversar mais com Ele nesses últimos tempos?" },
+        { id: 2, original: "Você procurou o amor e a proteção de Deus?", adaptada: "Teve momentos que o(a) senhor(a) sentiu que precisava do carinho ou da proteção de Deus?" },
+        { id: 3, original: "Você rezou ou meditou para encontrar consolo e orientação?", adaptada: "Rezou ou conversou com Deus pedindo ajuda, conforto ou um conselho sobre o que fazer?" },
+        { id: 4, original: "Você buscou forças em Deus?", adaptada: "O(a) senhor(a) procurou se fortalecer em Deus quando as coisas estavam difíceis?" },
+        { id: 5, original: "Você rezou pelos outros?", adaptada: "O(a) senhor(a) costuma rezar por outras pessoas, como amigos, família, colegas daqui do abrigo?" },
+        { id: 6, original: "Você tentou ver como Deus pode estar te fortalecendo nessa situação?", adaptada: "O(a) senhor(a) chegou a pensar que essa situação pode estar servindo pra te tornar mais forte com a ajuda de Deus?" },
+        { id: 7, original: "Você pediu perdão a Deus pelos seus erros?", adaptada: "Sentiu vontade de conversar com Deus pra pedir perdão por algo que acredita que fez de errado?" },
+        { id: 8, original: "Você sentiu que Deus te abandonou?", adaptada: "Teve algum momento que sentiu como se Deus tivesse te deixado sozinho(a)?" },
+        { id: 9, original: "Você questionou o amor de Deus por você?", adaptada: "Já pensou se Deus realmente te ama ou se te esqueceu?" },
+        { id: 10, original: "Você pensou que Deus estava te punindo?", adaptada: "Já sentiu que Deus tá te castigando por algo?" },
+        { id: 11, original: "Você sentiu raiva de Deus?", adaptada: "Já ficou com raiva de Deus por tudo que tá passando?" },
+        { id: 12, original: "Você achou que esse sofrimento era um castigo de Deus?", adaptada: "Pensou que tudo isso que está vivendo pode ser um castigo de Deus?" },
+        { id: 13, original: "Você achou que Deus estava te testando?", adaptada: "Acredita que Deus está te provando ou testando com essa situação?" },
+        { id: 14, original: "Você teve dificuldade em confiar em Deus?", adaptada: "Teve dias em que ficou difícil acreditar ou confiar em Deus?" },
+    ]
+  },
+  cuidadores: {
+    name: "Cuidadores de CRIANES (APAE)",
+    whatsapp: "5583999992617",
+    color: "pink",
+    bgColor: "bg-pink-50",
+    textColor: "text-pink-800",
+    buttonColor: "bg-pink-600",
+    buttonHoverColor: "hover:bg-pink-700",
+    borderColor: "border-pink-600",
+    intro: "A gente quer entender como a fé ajuda (ou não ajuda) no seu dia a dia com a criança. Pode responder como se estivesse contando sua rotina pra um amigo, tudo certo?",
+    questions: [
+        { id: 1, original: "Você procurou uma ligação maior com Deus?", adaptada: "Você buscou se aproximar mais de Deus nos momentos difíceis com seu filho(a)?" },
+        { id: 2, original: "Você procurou o amor e a proteção de Deus?", adaptada: "Sentiu que precisava da proteção de Deus diante dos desafios de cuidar da criança?" },
+        { id: 3, original: "Você rezou ou meditou para encontrar consolo e orientação?", adaptada: "Você rezou ou meditou pedindo orientação ou consolo em situações difíceis?" },
+        { id: 4, original: "Você buscou forças em Deus?", adaptada: "Buscou forças em Deus para continuar lutando pelo cuidado da criança?" },
+        { id: 5, original: "Você rezou pelos outros?", adaptada: "Você costuma rezar por outras pessoas, como por seu(sua) filho(a), familiares ou amigos?" },
+        { id: 6, original: "Você tentou ver como Deus pode estar te fortalecendo nessa situação?", adaptada: "Já pensou que Deus pode estar te dando força para enfrentar tudo isso?" },
+        { id: 7, original: "Você pediu perdão a Deus pelos seus erros?", adaptada: "Você pediu perdão a Deus por algo que acha que poderia ter feito diferente?" },
+        { id: 8, original: "Você sentiu que Deus te abandonou?", adaptada: "Sentiu que Deus te deixou sozinha(o) nesse cuidado todo?" },
+        { id: 9, original: "Você questionou o amor de Deus por você?", adaptada: "Já teve dúvida se Deus te ama mesmo diante de tanto sofrimento?" },
+        { id: 10, original: "Você pensou que Deus estava te punindo?", adaptada: "Você pensou que tudo isso pode ser um castigo de Deus?" },
+        { id: 11, original: "Você sentiu raiva de Deus?", adaptada: "Já ficou com raiva de Deus por tudo que está vivendo?" },
+        { id: 12, original: "Você achou que esse sofrimento era um castigo de Deus?", adaptada: "Acreditou que os problemas são um castigo?" },
+        { id: 13, original: "Você achou que Deus estava te testando?", adaptada: "Você sentiu que tudo isso é um teste de Deus pra você?" },
+        { id: 14, original: "Você teve dificuldade em confiar em Deus?", adaptada: "Teve dificuldade em acreditar ou confiar em Deus durante esse processo?" },
+    ]
+  },
+  dependentes: {
+    name: "Usuários do CAPS AD (Dependentes Químicos)",
+    whatsapp: "5583991007459",
+    color: "orange",
+    bgColor: "bg-orange-50",
+    textColor: "text-orange-800",
+    buttonColor: "bg-orange-600",
+    buttonHoverColor: "hover:bg-orange-700",
+    borderColor: "border-orange-600",
+    intro: "A gente quer saber como a sua fé ou sua relação com Deus tem influenciado no seu tratamento. Pode responder com sinceridade, sem julgamento.",
+    questions: [
+        { id: 1, original: "Você procurou uma ligação maior com Deus?", adaptada: "Você tentou se aproximar mais de Deus nesse tempo de tratamento?" },
+        { id: 2, original: "Você procurou o amor e a proteção de Deus?", adaptada: "Buscou proteção e carinho de Deus nas horas difíceis?" },
+        { id: 3, original: "Você rezou ou meditou para encontrar consolo e orientação?", adaptada: "Você orou, meditou ou conversou com Deus pedindo ajuda ou clareza?" },
+        { id: 4, original: "Você buscou forças em Deus?", adaptada: "Sentiu que precisava buscar forças em Deus pra vencer as recaídas ou a abstinência?" },
+        { id: 5, original: "Você rezou pelos outros?", adaptada: "Você rezou por outras pessoas, como amigos, família ou colegas daqui do CAPS?" },
+        { id: 6, original: "Você tentou ver como Deus pode estar te fortalecendo nessa situação?", adaptada: "Pensou que, mesmo na dificuldade, Deus pode estar te fortalecendo?" },
+        { id: 7, original: "Você pediu perdão a Deus pelos seus erros?", adaptada: "Você pediu perdão a Deus por algo do seu passado?" },
+        { id: 8, original: "Você sentiu que Deus te abandonou?", adaptada: "Já teve a sensação de que Deus te deixou de lado?" },
+        { id: 9, original: "Você questionou o amor de Deus por você?", adaptada: "Sentiu dúvida se Deus realmente se importa contigo?" },
+        { id: 10, original: "Você pensou que Deus estava te punindo?", adaptada: "Pensou que o vício ou as recaídas são um castigo de Deus?" },
+        { id: 11, original: "Você sentiu raiva de Deus?", adaptada: "Já sentiu raiva de Deus pelo que está passando?" },
+        { id: 12, original: "Você achou que esse sofrimento era um castigo de Deus?", adaptada: "Acreditou que tudo que passou é uma punição de Deus?" },
+        { id: 13, original: "Você achou que Deus estava te testando?", adaptada: "Sentiu que Deus estava te testando com as dificuldades?" },
+        { id: 14, original: "Você teve dificuldade em confiar em Deus?", adaptada: "Ficou difícil confiar em Deus em certos momentos?" },
+    ]
+  },
+};
+
+const responseOptions = ["Nunca", "Raramente", "Às vezes", "Muitas vezes", "Sempre"];
+
+// --- Configuração do Firebase ---
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// --- Componentes da UI ---
+
+const AuthScreen = ({ onProfessorLogin }) => {
+  const [isProfessorView, setIsProfessorView] = useState(false);
+  const [error, setError] = useState('');
+  const [professorPassword, setProfessorPassword] = useState('');
+  
+  // Student form state
+  const [isRegister, setIsRegister] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [studentForm, setStudentForm] = useState({
+      name: '',
+      studentId: '',
+      phone: '',
+      email: '',
+      password: ''
+  });
+
+  const handleStudentFormChange = (e) => {
+      const { name, value } = e.target;
+      setStudentForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleStudentAuth = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      if (isRegister) {
+        // Register new student and save their profile
+        const userCredential = await createUserWithEmailAndPassword(auth, studentForm.email, studentForm.password);
+        const user = userCredential.user;
+        const userDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile/profile`);
+        await setDoc(userDocRef, {
+            email: user.email,
+            name: studentForm.name,
+            studentId: studentForm.studentId,
+            phone: studentForm.phone
+        });
+      } else {
+        // Sign in existing student
+        await signInWithEmailAndPassword(auth, studentForm.email, studentForm.password);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProfessorAuth = (e) => {
+    e.preventDefault();
+    if (professorPassword === 'PESM') {
+      onProfessorLogin();
+    } else {
+      setError('Senha do professor incorreta.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold text-center text-gray-800">
+          {isProfessorView ? 'Login do Professor' : (isRegister ? 'Registrar Novo Aluno' : 'Login do Aluno')}
+        </h2>
+        
+        {isProfessorView ? (
+          <form onSubmit={handleProfessorAuth} className="space-y-6">
+            <div>
+              <label className="text-sm font-medium text-gray-700">Senha</label>
+              <input type="password" value={professorPassword} onChange={(e) => setProfessorPassword(e.target.value)} required className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button type="submit" className="w-full py-2 px-4 text-white font-semibold bg-slate-600 rounded-md hover:bg-slate-700">Entrar como Professor</button>
+          </form>
+        ) : (
+          <form onSubmit={handleStudentAuth} className="space-y-6">
+            {isRegister && (
+              <>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Nome Completo</label>
+                  <input type="text" name="name" value={studentForm.name} onChange={handleStudentFormChange} required className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm"/>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Matrícula</label>
+                  <input type="text" name="studentId" value={studentForm.studentId} onChange={handleStudentFormChange} required className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm"/>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Telefone / WhatsApp</label>
+                  <input type="tel" name="phone" value={studentForm.phone} onChange={handleStudentFormChange} required className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm"/>
+                </div>
+              </>
+            )}
+            <div>
+              <label className="text-sm font-medium text-gray-700">Email</label>
+              <input type="email" name="email" value={studentForm.email} onChange={handleStudentFormChange} required className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm"/>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">Senha</label>
+              <input type="password" name="password" value={studentForm.password} onChange={handleStudentFormChange} required className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm"/>
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button type="submit" disabled={loading} className="w-full py-2 px-4 text-white font-semibold bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-300">
+              {loading ? 'Processando...' : (isRegister ? 'Registrar' : 'Entrar')}
+            </button>
+          </form>
+        )}
+        
+        <div className="text-center text-sm">
+            <button onClick={() => { setIsProfessorView(!isProfessorView); setError(''); }} className="font-medium text-slate-600 hover:text-slate-500">
+                {isProfessorView ? 'Acessar como Aluno' : 'Acessar como Professor'}
+            </button>
+            {!isProfessorView && (
+                <p className="mt-2 text-gray-600">
+                    {isRegister ? 'Já tem uma conta?' : 'Não tem uma conta?'}
+                    <button onClick={() => setIsRegister(!isRegister)} className="ml-1 font-medium text-indigo-600 hover:text-indigo-500">
+                        {isRegister ? 'Faça o login' : 'Registre-se'}
+                    </button>
+                </p>
+            )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ProfessorDashboard = ({ onLogout }) => {
+    const [submissions, setSubmissions] = useState([]);
+    const [filteredSubmissions, setFilteredSubmissions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState('all');
+    const [selectedSubmission, setSelectedSubmission] = useState(null);
+
+    useEffect(() => {
+        const fetchSubmissions = async () => {
+            setLoading(true);
+            const q = collection(db, `artifacts/${appId}/public/data/submissions`);
+            const querySnapshot = await getDocs(q);
+            const subs = [];
+            querySnapshot.forEach((doc) => {
+                subs.push({ id: doc.id, ...doc.data() });
+            });
+            subs.sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
+            setSubmissions(subs);
+            setFilteredSubmissions(subs);
+            setLoading(false);
+        };
+        fetchSubmissions();
+    }, []);
+
+    useEffect(() => {
+        if (filter === 'all') {
+            setFilteredSubmissions(submissions);
+        } else {
+            setFilteredSubmissions(submissions.filter(s => s.projectKey === filter));
+        }
+    }, [filter, submissions]);
+
+    return (
+        <div className="min-h-screen bg-slate-100 p-4 sm:p-8">
+            <div className="max-w-7xl mx-auto">
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-3xl font-bold text-slate-800">Painel do Professor</h1>
+                    <button onClick={onLogout} className="py-2 px-4 text-white font-semibold rounded-md bg-slate-600 hover:bg-slate-700">Sair</button>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow-lg">
+                    <div className="flex items-center mb-4">
+                        <label htmlFor="projectFilter" className="mr-2 font-medium">Filtrar por Projeto:</label>
+                        <select id="projectFilter" value={filter} onChange={(e) => setFilter(e.target.value)} className="border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                            <option value="all">Todos os Projetos</option>
+                            {Object.keys(projectConfig).map(key => (
+                                <option key={key} value={key}>{projectConfig[key].name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {loading ? <p>Carregando dados...</p> : (
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Projeto</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Participante</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Detalhes</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {filteredSubmissions.map(sub => (
+                                        <tr key={sub.id}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">{sub.createdAt.toDate().toLocaleString('pt-BR')}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">{projectConfig[sub.projectKey]?.name || 'N/A'}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{sub.studentEmail}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{sub.participantName}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                <button onClick={() => setSelectedSubmission(sub)} className="text-indigo-600 hover:text-indigo-900">Ver Detalhes</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </div>
+            {selectedSubmission && <DetailsModal submission={selectedSubmission} onClose={() => setSelectedSubmission(null)} />}
+        </div>
+    );
+};
+
+const DetailsModal = ({ submission, onClose }) => {
+    const project = projectConfig[submission.projectKey];
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-full overflow-y-auto">
+                <div className="p-6">
+                    <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                        <h3 className="text-xl font-bold">Detalhes da Avaliação</h3>
+                        <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+                    </div>
+                    <div className="space-y-2 mb-4">
+                        <p><strong>Participante:</strong> {submission.participantName}</p>
+                        <p><strong>Idade:</strong> {submission.participantAge}</p>
+                        <p><strong>Sexo:</strong> {submission.participantSex}</p>
+                        <p><strong>Projeto:</strong> {project.name}</p>
+                        <p><strong>Data:</strong> {submission.createdAt.toDate().toLocaleString('pt-BR')}</p>
+                    </div>
+                    <div className="space-y-4">
+                        <h4 className="font-semibold">Respostas:</h4>
+                        {submission.responses.map((response, index) => (
+                            <div key={index} className="p-3 bg-gray-50 rounded-md">
+                                <p className="text-sm font-medium text-gray-700">{project.questions[index].adaptada}</p>
+                                <p className="text-lg font-bold text-indigo-700 mt-1">{response}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+const ProjectSelector = ({ user, onSelectProject, onLogout }) => {
+  const [userProject, setUserProject] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserProject = async () => {
+      if (user) {
+        const userDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile/profile`);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists() && docSnap.data().project) {
+          setUserProject(docSnap.data().project);
+          onSelectProject(docSnap.data().project);
+        }
+        setLoading(false);
+      }
+    };
+    fetchUserProject();
+  }, [user, onSelectProject]);
+
+  const handleSelect = async (projectKey) => {
+    setUserProject(projectKey);
+    const userDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile/profile`);
+    await setDoc(userDocRef, { project: projectKey }, { merge: true });
+    onSelectProject(projectKey);
+  };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
+        <div className="w-full max-w-2xl bg-white rounded-lg shadow-md p-8">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Selecione seu Projeto</h2>
+                <button onClick={onLogout} className="text-sm font-medium text-indigo-600 hover:text-indigo-500">Sair</button>
+            </div>
+            <p className="text-gray-600 mb-2">Olá!</p>
+            <p className="text-gray-600 mb-6">Escolha o projeto de extensão ao qual você está vinculado. Esta escolha será salva para seus futuros acessos.</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {Object.keys(projectConfig).map(key => {
+                    const project = projectConfig[key];
+                    return (
+                        <button key={key} onClick={() => handleSelect(key)} className={`p-6 rounded-lg text-white font-bold text-lg shadow-lg transform transition hover:scale-105 ${project.buttonColor}`}>
+                            {project.name}
+                        </button>
+                    )
+                })}
+            </div>
+        </div>
+    </div>
+  );
+};
+
+const DataForm = ({ projectKey, user, onBack, onShowSubmissions }) => {
+  const project = projectConfig[projectKey];
+  const initialFormState = {
+    participantName: '',
+    participantAge: '',
+    participantSex: '',
+    responses: Array(project.questions.length).fill(null)
+  };
+  const [formData, setFormData] = useState(initialFormState);
+  const [status, setStatus] = useState({ error: '', success: '', info: '' });
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleResponseChange = (questionIndex, responseValue) => {
+    const newResponses = [...formData.responses];
+    newResponses[questionIndex] = responseValue;
+    setFormData(prev => ({ ...prev, responses: newResponses }));
+  };
+  
+  const generateAndShare = async (submissionData) => {
+    setStatus({ info: 'Carregando bibliotecas de PDF...', error: '', success: '' });
+    try {
+        // FIX: Dynamically import PDF libraries to avoid runtime errors.
+        const { default: jsPDF } = await import('https://esm.sh/jspdf@2.5.1');
+        const { default: autoTable } = await import('https://esm.sh/jspdf-autotable@3.8.2');
+
+        setStatus({ info: 'Gerando PDF...', error: '', success: '' });
+
+        // 1. Fetch student data
+        const userDocRef = doc(db, `artifacts/${appId}/users/${user.uid}/userProfile/profile`);
+        const userDocSnap = await getDoc(userDocRef);
+        const studentData = userDocSnap.exists() ? userDocSnap.data() : {};
+
+        // 2. Create PDF
+        const docPDF = new jsPDF();
+        docPDF.setFontSize(18);
+        docPDF.text("Relatório de Avaliação - CER-Breve-14", 14, 22);
+        
+        docPDF.setFontSize(11);
+        docPDF.setTextColor(100);
+        docPDF.text(`Projeto: ${project.name}`, 14, 32);
+        docPDF.text(`Participante: ${submissionData.participantName}, ${submissionData.participantAge} anos, ${submissionData.participantSex}`, 14, 38);
+        docPDF.text(`Data: ${new Date(submissionData.createdAt).toLocaleString('pt-BR')}`, 14, 44);
+        
+        docPDF.setFontSize(12);
+        docPDF.text(`Aluno Avaliador:`, 14, 54);
+        docPDF.setFontSize(11);
+        docPDF.setTextColor(100);
+        docPDF.text(`Nome: ${studentData.name || 'Não informado'}`, 14, 60);
+        docPDF.text(`Matrícula: ${studentData.studentId || 'Não informada'}`, 14, 66);
+        docPDF.text(`Contato: ${studentData.phone || 'Não informado'}`, 14, 72);
+
+        const tableColumn = ["Pergunta Adaptada", "Resposta"];
+        const tableRows = submissionData.responses.map((response, index) => [
+            project.questions[index].adaptada,
+            response
+        ]);
+
+        autoTable(docPDF, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 80,
+            styles: { font: 'helvetica', fontSize: 9, cellWidth: 'wrap' },
+            columnStyles: { 0: { cellWidth: 140 } },
+            headStyles: { fillColor: [22, 160, 133] },
+        });
+
+        // 3. Save PDF to user's device
+        docPDF.save(`Relatorio_${submissionData.participantName.replace(/ /g, '_')}.pdf`);
+        setStatus({ success: 'PDF baixado! Abrindo WhatsApp para envio...', error: '', info: '' });
+
+        // 4. Prepare and open WhatsApp link
+        const professorWhatsapp = project.whatsapp;
+        const message = encodeURIComponent(`Olá, professor(a)! Segue o relatório da avaliação de *${submissionData.participantName}*, referente ao projeto "${project.name}", realizado por ${studentData.name || 'aluno'}. O arquivo PDF está em anexo.`);
+        const whatsappUrl = `https://wa.me/${professorWhatsapp}?text=${message}`;
+        
+        window.open(whatsappUrl, '_blank');
+
+    } catch (err) {
+        console.error("PDF/WhatsApp Error:", err);
+        setStatus({ error: 'Dados salvos, mas houve um erro ao gerar o PDF.', success:'', info:'' });
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setStatus({ error: '', success: '', info: '' });
+
+    if (formData.responses.some(r => r === null)) {
+      setStatus({ error: "Por favor, responda todas as perguntas da escala.", success:'', info:'' });
+      return;
+    }
+    
+    setLoading(true);
+    const submissionData = {
+        studentId: user.uid,
+        studentEmail: user.email,
+        projectKey: projectKey,
+        ...formData,
+        participantAge: Number(formData.participantAge),
+        createdAt: new Date().toISOString()
+    };
+
+    try {
+      const collectionRef = collection(db, `artifacts/${appId}/public/data/submissions`);
+      await addDoc(collectionRef, {
+        ...submissionData,
+        createdAt: new Date(submissionData.createdAt)
+      });
+      
+      setStatus({ success: "Dados salvos com sucesso!", error: '', info: '' });
+      setFormData(initialFormState);
+      
+      await generateAndShare(submissionData);
+
+    } catch (err) {
+      setStatus({ error: "Erro ao salvar os dados. Tente novamente.", success:'', info:'' });
+      console.error("Firestore Error:", err);
+    } finally {
+      setLoading(false);
+      setTimeout(() => setStatus({ error: '', success: '', info: '' }), 10000);
+    }
+  };
+
+  return (
+    <div className={`min-h-screen p-4 sm:p-8 ${project.bgColor}`}>
+      <div className="max-w-4xl mx-auto">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <button onClick={onBack} className={`mb-4 py-2 px-4 text-white font-semibold rounded-md ${project.buttonColor} ${project.buttonHoverColor}`}>
+              &larr; Trocar de Projeto
+            </button>
+            <h1 className={`text-3xl font-bold ${project.textColor}`}>{project.name}</h1>
+          </div>
+          <button onClick={onShowSubmissions} className={`py-2 px-4 text-white font-semibold rounded-md ${project.buttonColor} ${project.buttonHoverColor}`}>
+              Ver Envios
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-lg space-y-8">
+          <div>
+            <h3 className={`text-xl font-semibold mb-4 pb-2 border-b-2 ${project.borderColor} ${project.textColor}`}>Informações do Participante</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nome Completo</label>
+                <input type="text" name="participantName" value={formData.participantName} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"/>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Idade</label>
+                <input type="number" name="participantAge" value={formData.participantAge} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"/>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Sexo</label>
+                <select name="participantSex" value={formData.participantSex} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                  <option value="">Selecione...</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Feminino">Feminino</option>
+                  <option value="Outro">Outro</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h3 className={`text-xl font-semibold mb-2 ${project.textColor}`}>Escala CER-Breve-14</h3>
+            <p className={`p-4 rounded-md ${project.bgColor} ${project.textColor} italic`}>
+              <strong>Instrução para o aluno:</strong> {project.intro}
+            </p>
+            <div className="space-y-6 mt-6">
+              {project.questions.map((q, index) => (
+                <div key={q.id} className="p-4 border border-gray-200 rounded-lg">
+                  <p className="font-semibold text-gray-800">{index + 1}. {q.adaptada}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
+                    {responseOptions.map((opt, optIndex) => (
+                      <label key={optIndex} className="flex items-center space-x-2 text-gray-700 cursor-pointer">
+                        <input type="radio" name={`question-${index}`} value={opt} checked={formData.responses[index] === opt} onChange={() => handleResponseChange(index, opt)} className={`form-radio h-5 w-5 ${project.textColor.replace('text-', 'text-')}`}/>
+                        <span>{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="text-center">
+            {status.error && <p className="text-red-600 mb-4">{status.error}</p>}
+            {status.success && <p className="text-green-600 mb-4 font-semibold">{status.success}</p>}
+            {status.info && <p className="text-blue-600 mb-4">{status.info}</p>}
+            <button type="submit" disabled={loading} className={`w-full md:w-2/3 py-3 px-6 text-white font-bold text-lg rounded-lg shadow-md transition ${project.buttonColor} ${project.buttonHoverColor} disabled:bg-gray-400`}>
+              {loading ? "Salvando..." : "Salvar e Gerar PDF para WhatsApp"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const SubmissionsList = ({ projectKey, user, onBack }) => {
+    const [submissions, setSubmissions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const project = projectConfig[projectKey];
+
+    useEffect(() => {
+        setLoading(true);
+        const q = query(
+            collection(db, `artifacts/${appId}/public/data/submissions`),
+            where("studentId", "==", user.uid),
+            where("projectKey", "==", projectKey)
+        );
+
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const subs = [];
+            querySnapshot.forEach((doc) => {
+                subs.push({ id: doc.id, ...doc.data() });
+            });
+            subs.sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate());
+            setSubmissions(subs);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching submissions: ", error);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [projectKey, user.uid]);
+
+    return (
+        <div className={`min-h-screen p-4 sm:p-8 ${project.bgColor}`}>
+            <div className="max-w-6xl mx-auto">
+                <button onClick={onBack} className={`mb-6 py-2 px-4 text-white font-semibold rounded-md ${project.buttonColor} ${project.buttonHoverColor}`}>
+                    &larr; Voltar para o Formulário
+                </button>
+                <h1 className={`text-3xl font-bold mb-6 ${project.textColor}`}>Meus Envios - {project.name}</h1>
+                
+                <div className="bg-white p-6 rounded-lg shadow-lg">
+                    {loading ? (
+                        <p>Carregando envios...</p>
+                    ) : submissions.length === 0 ? (
+                        <p>Você ainda não registrou nenhuma avaliação para este projeto.</p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Participante</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Idade</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sexo</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {submissions.map(sub => (
+                                        <tr key={sub.id}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{sub.createdAt.toDate().toLocaleString('pt-BR')}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{sub.participantName}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{sub.participantAge}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{sub.participantSex}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// --- Componente Principal ---
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null); // 'student' or 'professor'
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [currentPage, setCurrentPage] = useState('form'); // 'form' or 'submissions'
+
+  useEffect(() => {
+    const performAuth = async () => {
+        try {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            }
+        } catch (error) {
+            console.error("Anonymous/Custom Sign-In Error:", error);
+        }
+    };
+
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser && !currentUser.isAnonymous) {
+        setUser(currentUser);
+        setUserRole('student');
+        const userDocRef = doc(db, `artifacts/${appId}/users/${currentUser.uid}/userProfile/profile`);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists() && docSnap.data().project) {
+          setSelectedProject(docSnap.data().project);
+        }
+      } else {
+        if (userRole !== 'professor') {
+            setUser(null);
+            setUserRole(null);
+        }
+      }
+      
+      if (!isAuthReady) {
+          await performAuth();
+          setIsAuthReady(true);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [isAuthReady, userRole]);
+
+  const handleProfessorLogin = () => {
+      setUser({ role: 'professor' });
+      setUserRole('professor');
+  }
+
+  const handleLogout = async () => {
+    if (userRole === 'student') {
+        await signOut(auth);
+    }
+    setUser(null);
+    setUserRole(null);
+    setSelectedProject(null);
+    setCurrentPage('form');
+  };
+
+  const handleBackToProjectSelector = () => {
+      setSelectedProject(null);
+      setCurrentPage('form');
+  }
+
+  if (!isAuthReady) {
+    return <div className="min-h-screen flex items-center justify-center">Carregando Aplicação...</div>;
+  }
+
+  if (!user) {
+    return <AuthScreen onProfessorLogin={handleProfessorLogin} />;
+  }
+
+  if (userRole === 'professor') {
+      return <ProfessorDashboard onLogout={handleLogout} />
+  }
+
+  if (userRole === 'student') {
+      if (!selectedProject) {
+        return <ProjectSelector user={user} onSelectProject={setSelectedProject} onLogout={handleLogout} />;
+      }
+    
+      if (currentPage === 'submissions') {
+          return <SubmissionsList projectKey={selectedProject} user={user} onBack={() => setCurrentPage('form')} />
+      }
+    
+      return <DataForm projectKey={selectedProject} user={user} onBack={handleBackToProjectSelector} onShowSubmissions={() => setCurrentPage('submissions')} />;
+  }
+
+  return <div className="min-h-screen flex items-center justify-center">Ocorreu um erro. Por favor, recarregue a página.</div>
+}
