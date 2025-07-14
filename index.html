@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerador de Relatório - CER-Breve-14</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FIX: Carregando as bibliotecas de PDF de forma global para evitar erros de CORS/Módulo -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
         .loader {
             border: 4px solid #f3f3f3;
@@ -127,233 +130,222 @@
     </div>
 
     <!-- Scripts -->
-    <script type="module">
-        // --- Configuração dos Projetos e Perguntas ---
-        const projectConfig = {
-          idosos: { name: "Idosos Institucionalizados (Abrigo Lucas Zorn)", whatsapp: "5584994420139", color: "green", bgColor: "bg-green-50", textColor: "text-green-800", buttonColor: "bg-green-600", intro: "Vou te fazer umas perguntas bem simples sobre sua fé ou sua ligação com Deus, tá certo? Não tem resposta certa ou errada, é só o que você sente, tá bom?", questions: [ { id: 1, adaptada: "O(a) senhor(a) sentiu vontade de se aproximar mais de Deus, conversar mais com Ele nesses últimos tempos?" }, { id: 2, adaptada: "Teve momentos que o(a) senhor(a) sentiu que precisava do carinho ou da proteção de Deus?" }, { id: 3, adaptada: "Rezou ou conversou com Deus pedindo ajuda, conforto ou um conselho sobre o que fazer?" }, { id: 4, adaptada: "O(a) senhor(a) procurou se fortalecer em Deus quando as coisas estavam difíceis?" }, { id: 5, adaptada: "O(a) senhor(a) costuma rezar por outras pessoas, como amigos, família, colegas daqui do abrigo?" }, { id: 6, adaptada: "O(a) senhor(a) chegou a pensar que essa situação pode estar servindo pra te tornar mais forte com a ajuda de Deus?" }, { id: 7, adaptada: "Sentiu vontade de conversar com Deus pra pedir perdão por algo que acredita que fez de errado?" }, { id: 8, adaptada: "Teve algum momento que sentiu como se Deus tivesse te deixado sozinho(a)?" }, { id: 9, adaptada: "Já pensou se Deus realmente te ama ou se te esqueceu?" }, { id: 10, adaptada: "Já sentiu que Deus tá te castigando por algo?" }, { id: 11, adaptada: "Já ficou com raiva de Deus por tudo que tá passando?" }, { id: 12, adaptada: "Pensou que tudo isso que está vivendo pode ser um castigo de Deus?" }, { id: 13, adaptada: "Acredita que Deus está te provando ou testando com essa situação?" }, { id: 14, adaptada: "Teve dias em que ficou difícil acreditar ou confiar em Deus?" }, ] },
-          cuidadores: { name: "Cuidadores de CRIANES (APAE)", whatsapp: "5583999992617", color: "pink", bgColor: "bg-pink-50", textColor: "text-pink-800", buttonColor: "bg-pink-600", intro: "A gente quer entender como a fé ajuda (ou não ajuda) no seu dia a dia com a criança. Pode responder como se estivesse contando sua rotina pra um amigo, tudo certo?", questions: [ { id: 1, adaptada: "Você buscou se aproximar mais de Deus nos momentos difíceis com seu filho(a)?" }, { id: 2, adaptada: "Sentiu que precisava da proteção de Deus diante dos desafios de cuidar da criança?" }, { id: 3, adaptada: "Você rezou ou meditou pedindo orientação ou consolo em situações difíceis?" }, { id: 4, adaptada: "Buscou forças em Deus para continuar lutando pelo cuidado da criança?" }, { id: 5, adaptada: "Você costuma rezar por outras pessoas, como por seu(sua) filho(a), familiares ou amigos?" }, { id: 6, adaptada: "Já pensou que Deus pode estar te dando força para enfrentar tudo isso?" }, { id: 7, adaptada: "Você pediu perdão a Deus por algo que acha que poderia ter feito diferente?" }, { id: 8, adaptada: "Sentiu que Deus te deixou sozinha(o) nesse cuidado todo?" }, { id: 9, adaptada: "Já teve dúvida se Deus te ama mesmo diante de tanto sofrimento?" }, { id: 10, adaptada: "Você pensou que tudo isso pode ser um castigo de Deus?" }, { id: 11, adaptada: "Já ficou com raiva de Deus por tudo que está vivendo?" }, { id: 12, adaptada: "Acreditou que os problemas são um castigo?" }, { id: 13, adaptada: "Você sentiu que tudo isso é um teste de Deus pra você?" }, { id: 14, adaptada: "Teve dificuldade em acreditar ou confiar em Deus durante esse processo?" }, ] },
-          dependentes: { name: "Usuários do CAPS AD (Dependentes Químicos)", whatsapp: "5583991007459", color: "orange", bgColor: "bg-orange-50", textColor: "text-orange-800", buttonColor: "bg-orange-600", intro: "A gente quer saber como a sua fé ou sua relação com Deus tem influenciado no seu tratamento. Pode responder com sinceridade, sem julgamento.", questions: [ { id: 1, adaptada: "Você tentou se aproximar mais de Deus nesse tempo de tratamento?" }, { id: 2, adaptada: "Buscou proteção e carinho de Deus nas horas difíceis?" }, { id: 3, adaptada: "Você orou, meditou ou conversou com Deus pedindo ajuda ou clareza?" }, { id: 4, adaptada: "Sentiu que precisava buscar forças em Deus pra vencer as recaídas ou a abstinência?" }, { id: 5, adaptada: "Você rezou por outras pessoas, como amigos, família ou colegas daqui do CAPS?" }, { id: 6, adaptada: "Pensou que, mesmo na dificuldade, Deus pode estar te fortalecendo?" }, { id: 7, adaptada: "Você pediu perdão a Deus por algo do seu passado?" }, { id: 8, adaptada: "Já teve a sensação de que Deus te deixou de lado?" }, { id: 9, adaptada: "Sentiu dúvida se Deus realmente se importa contigo?" }, { id: 10, adaptada: "Pensou que o vício ou as recaídas são um castigo de Deus?" }, { id: 11, adaptada: "Já sentiu raiva de Deus pelo que está passando?" }, { id: 12, adaptada: "Acreditou que tudo que passou é uma punição de Deus?" }, { id: 13, adaptada: "Sentiu que Deus estava te testando com as dificuldades?" }, { id: 14, adaptada: "Ficou difícil confiar em Deus em certos momentos?" }, ] },
-        };
-        const responseOptions = ["Nunca", "Raramente", "Às vezes", "Muitas vezes", "Sempre"];
-        const responseMap = { "Nunca": 1, "Raramente": 2, "Às vezes": 3, "Muitas vezes": 4, "Sempre": 5 };
+    <script>
+        // FIX: Removido type="module" para compatibilidade universal
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Configuração dos Projetos e Perguntas ---
+            const projectConfig = {
+              idosos: { name: "Idosos Institucionalizados (Abrigo Lucas Zorn)", whatsapp: "5584994420139", color: "green", bgColor: "bg-green-50", textColor: "text-green-800", buttonColor: "bg-green-600", intro: "Vou te fazer umas perguntas bem simples sobre sua fé ou sua ligação com Deus, tá certo? Não tem resposta certa ou errada, é só o que você sente, tá bom?", questions: [ { id: 1, adaptada: "O(a) senhor(a) sentiu vontade de se aproximar mais de Deus, conversar mais com Ele nesses últimos tempos?" }, { id: 2, adaptada: "Teve momentos que o(a) senhor(a) sentiu que precisava do carinho ou da proteção de Deus?" }, { id: 3, adaptada: "Rezou ou conversou com Deus pedindo ajuda, conforto ou um conselho sobre o que fazer?" }, { id: 4, adaptada: "O(a) senhor(a) procurou se fortalecer em Deus quando as coisas estavam difíceis?" }, { id: 5, adaptada: "O(a) senhor(a) costuma rezar por outras pessoas, como amigos, família, colegas daqui do abrigo?" }, { id: 6, adaptada: "O(a) senhor(a) chegou a pensar que essa situação pode estar servindo pra te tornar mais forte com a ajuda de Deus?" }, { id: 7, adaptada: "Sentiu vontade de conversar com Deus pra pedir perdão por algo que acredita que fez de errado?" }, { id: 8, adaptada: "Teve algum momento que sentiu como se Deus tivesse te deixado sozinho(a)?" }, { id: 9, adaptada: "Já pensou se Deus realmente te ama ou se te esqueceu?" }, { id: 10, adaptada: "Já sentiu que Deus tá te castigando por algo?" }, { id: 11, adaptada: "Já ficou com raiva de Deus por tudo que tá passando?" }, { id: 12, adaptada: "Pensou que tudo isso que está vivendo pode ser um castigo de Deus?" }, { id: 13, adaptada: "Acredita que Deus está te provando ou testando com essa situação?" }, { id: 14, adaptada: "Teve dias em que ficou difícil acreditar ou confiar em Deus?" }, ] },
+              cuidadores: { name: "Cuidadores de CRIANES (APAE)", whatsapp: "5583999992617", color: "pink", bgColor: "bg-pink-50", textColor: "text-pink-800", buttonColor: "bg-pink-600", intro: "A gente quer entender como a fé ajuda (ou não ajuda) no seu dia a dia com a criança. Pode responder como se estivesse contando sua rotina pra um amigo, tudo certo?", questions: [ { id: 1, adaptada: "Você buscou se aproximar mais de Deus nos momentos difíceis com seu filho(a)?" }, { id: 2, adaptada: "Sentiu que precisava da proteção de Deus diante dos desafios de cuidar da criança?" }, { id: 3, adaptada: "Você rezou ou meditou pedindo orientação ou consolo em situações difíceis?" }, { id: 4, adaptada: "Buscou forças em Deus para continuar lutando pelo cuidado da criança?" }, { id: 5, adaptada: "Você costuma rezar por outras pessoas, como por seu(sua) filho(a), familiares ou amigos?" }, { id: 6, adaptada: "Já pensou que Deus pode estar te dando força para enfrentar tudo isso?" }, { id: 7, adaptada: "Você pediu perdão a Deus por algo que acha que poderia ter feito diferente?" }, { id: 8, adaptada: "Sentiu que Deus te deixou sozinha(o) nesse cuidado todo?" }, { id: 9, adaptada: "Já teve dúvida se Deus te ama mesmo diante de tanto sofrimento?" }, { id: 10, adaptada: "Você pensou que tudo isso pode ser um castigo de Deus?" }, { id: 11, adaptada: "Já ficou com raiva de Deus por tudo que está vivendo?" }, { id: 12, adaptada: "Acreditou que os problemas são um castigo?" }, { id: 13, adaptada: "Você sentiu que tudo isso é um teste de Deus pra você?" }, { id: 14, adaptada: "Teve dificuldade em acreditar ou confiar em Deus durante esse processo?" }, ] },
+              dependentes: { name: "Usuários do CAPS AD (Dependentes Químicos)", whatsapp: "5583991007459", color: "orange", bgColor: "bg-orange-50", textColor: "text-orange-800", buttonColor: "bg-orange-600", intro: "A gente quer saber como a sua fé ou sua relação com Deus tem influenciado no seu tratamento. Pode responder com sinceridade, sem julgamento.", questions: [ { id: 1, adaptada: "Você tentou se aproximar mais de Deus nesse tempo de tratamento?" }, { id: 2, adaptada: "Buscou proteção e carinho de Deus nas horas difíceis?" }, { id: 3, adaptada: "Você orou, meditou ou conversou com Deus pedindo ajuda ou clareza?" }, { id: 4, adaptada: "Sentiu que precisava buscar forças em Deus pra vencer as recaídas ou a abstinência?" }, { id: 5, adaptada: "Você rezou por outras pessoas, como amigos, família ou colegas daqui do CAPS?" }, { id: 6, adaptada: "Pensou que, mesmo na dificuldade, Deus pode estar te fortalecendo?" }, { id: 7, adaptada: "Você pediu perdão a Deus por algo do seu passado?" }, { id: 8, adaptada: "Já teve a sensação de que Deus te deixou de lado?" }, { id: 9, adaptada: "Sentiu dúvida se Deus realmente se importa contigo?" }, { id: 10, adaptada: "Pensou que o vício ou as recaídas são um castigo de Deus?" }, { id: 11, adaptada: "Já sentiu raiva de Deus pelo que está passando?" }, { id: 12, adaptada: "Acreditou que tudo que passou é uma punição de Deus?" }, { id: 13, adaptada: "Sentiu que Deus estava te testando com as dificuldades?" }, { id: 14, adaptada: "Ficou difícil confiar em Deus em certos momentos?" }, ] },
+            };
+            const responseOptions = ["Nunca", "Raramente", "Às vezes", "Muitas vezes", "Sempre"];
+            const responseMap = { "Nunca": 1, "Raramente": 2, "Às vezes": 3, "Muitas vezes": 4, "Sempre": 5 };
 
-        // --- Estado da Aplicação ---
-        let appState = {
-            studentName: '',
-            studentId: '',
-            studentPhone: '',
-            projectKey: '',
-        };
-
-        // --- Elementos da DOM ---
-        const screens = {
-            studentInfo: document.getElementById('student-info-screen'),
-            projectSelection: document.getElementById('project-selection-screen'),
-            dataCollection: document.getElementById('data-collection-screen'),
-        };
-        const studentForm = document.getElementById('student-form');
-        const projectButtonsContainer = document.getElementById('project-buttons-container');
-        const dataForm = document.getElementById('data-form');
-        const questionsContainer = document.getElementById('questions-container');
-        const questionsTitle = document.getElementById('questions-title');
-        const questionsIntro = document.getElementById('questions-intro');
-        const questionsList = document.getElementById('questions-list');
-        const statusMessage = document.getElementById('status-message');
-        const submitButton = document.getElementById('submit-button');
-        const backToStudentInfoBtn = document.getElementById('back-to-student-info');
-        const backToProjectSelectionBtn = document.getElementById('back-to-project-selection');
-
-        // --- Funções de Navegação ---
-        const navigateTo = (screenName) => {
-            Object.values(screens).forEach(screen => screen.classList.add('hidden'));
-            if (screens[screenName]) {
-                screens[screenName].classList.remove('hidden');
-            }
-        };
-
-        // --- Renderização e Lógica da UI ---
-        
-        // Povoar os botões de projeto
-        Object.keys(projectConfig).forEach(key => {
-            const project = projectConfig[key];
-            const button = document.createElement('button');
-            button.dataset.projectKey = key;
-            button.className = `p-8 rounded-lg text-white font-bold text-lg shadow-lg transform transition hover:scale-105 bg-${project.color}-600`;
-            button.textContent = project.name;
-            button.addEventListener('click', () => {
-                appState.projectKey = key;
-                renderDataCollectionScreen(key);
-                navigateTo('dataCollection');
-            });
-            projectButtonsContainer.appendChild(button);
-        });
-
-        const renderDataCollectionScreen = (projectKey) => {
-            const project = projectConfig[projectKey];
-            questionsIntro.textContent = `Instrução: ${project.intro}`;
-            questionsIntro.className = `p-4 rounded-md italic ${project.bgColor} ${project.textColor}`;
-            questionsTitle.className = `text-xl font-semibold mb-2 ${project.textColor}`;
-            
-            questionsList.innerHTML = ''; // Limpa perguntas anteriores
-            project.questions.forEach((q, index) => {
-                const questionDiv = document.createElement('div');
-                questionDiv.className = 'p-4 border border-gray-200 rounded-lg';
-                
-                const questionP = document.createElement('p');
-                questionP.className = 'font-semibold text-gray-800';
-                questionP.textContent = `${index + 1}. ${q.adaptada}`;
-                questionDiv.appendChild(questionP);
-
-                const radioContainer = document.createElement('div');
-                radioContainer.className = 'flex flex-wrap gap-x-4 gap-y-2 mt-3';
-
-                responseOptions.forEach((opt) => {
-                    const label = document.createElement('label');
-                    label.className = 'flex items-center space-x-2 text-gray-700 cursor-pointer';
-                    const radio = document.createElement('input');
-                    radio.type = 'radio';
-                    radio.name = `question-${index}`;
-                    radio.value = opt;
-                    radio.required = true;
-                    radio.className = `form-radio h-5 w-5 text-${project.color}-600`;
-                    const span = document.createElement('span');
-                    span.textContent = opt;
-                    label.appendChild(radio);
-                    label.appendChild(span);
-                    radioContainer.appendChild(label);
-                });
-                questionDiv.appendChild(radioContainer);
-                questionsList.appendChild(questionDiv);
-            });
-        };
-
-        // --- Lógica de Geração de PDF ---
-        const generateAndShare = async (formData) => {
-            statusMessage.textContent = 'Carregando bibliotecas de PDF...';
-            statusMessage.className = 'mb-4 font-semibold text-blue-600';
-            submitButton.disabled = true;
-
-            try {
-                const { default: jsPDF } = await import('https://esm.sh/jspdf@2.5.1');
-                const { default: autoTable } = await import('https://esm.sh/jspdf-autotable@3.8.2');
-
-                statusMessage.textContent = 'Gerando PDF...';
-                const project = projectConfig[formData.projectKey];
-                
-                // Calcular os escores
-                const numericResponses = formData.responses.map(r => responseMap[r]);
-                const positiveScore = numericResponses.slice(0, 7).reduce((a, b) => a + b, 0);
-                const negativeScore = numericResponses.slice(7, 14).reduce((a, b) => a + b, 0);
-
-                const docPDF = new jsPDF();
-                docPDF.setFontSize(18);
-                docPDF.text("Relatório de Avaliação - CER-Breve-14", 14, 22);
-                
-                docPDF.setFontSize(11);
-                docPDF.setTextColor(100);
-                docPDF.text(`Projeto: ${project.name}`, 14, 32);
-                docPDF.text(`Participante: ${formData.participantName}, ${formData.participantAge} anos, ${formData.participantSex}`, 14, 38);
-                docPDF.text(`Data: ${new Date().toLocaleString('pt-BR')}`, 14, 44);
-                
-                docPDF.setFontSize(12);
-                docPDF.text(`Aluno Avaliador:`, 14, 54);
-                docPDF.setFontSize(11);
-                docPDF.setTextColor(100);
-                docPDF.text(`Nome: ${formData.studentName}`, 14, 60);
-                docPDF.text(`Matrícula: ${formData.studentId}`, 14, 66);
-                docPDF.text(`Contato: ${formData.studentPhone}`, 14, 72);
-
-                // Adicionar seção de resultados
-                docPDF.setFontSize(14);
-                docPDF.setTextColor(0);
-                docPDF.text(`Resultados da Escala`, 14, 85);
-                docPDF.setFontSize(11);
-                docPDF.text(`CER Positivo (Itens 1-7): ${positiveScore}`, 14, 92);
-                docPDF.text(`CER Negativo (Itens 8-14): ${negativeScore}`, 14, 98);
-
-
-                const tableColumn = ["Pergunta Adaptada", "Resposta"];
-                const tableRows = formData.responses.map((response, index) => [
-                    project.questions[index].adaptada,
-                    response
-                ]);
-
-                autoTable(docPDF, {
-                    head: [tableColumn],
-                    body: tableRows,
-                    startY: 105,
-                    styles: { font: 'helvetica', fontSize: 9, cellWidth: 'wrap' },
-                    columnStyles: { 0: { cellWidth: 140 } },
-                    headStyles: { fillColor: [22, 160, 133] },
-                });
-
-                docPDF.save(`Relatorio_${formData.participantName.replace(/ /g, '_')}.pdf`);
-                
-                statusMessage.textContent = 'PDF baixado! Abrindo WhatsApp para envio...';
-                statusMessage.className = 'mb-4 font-semibold text-green-600';
-
-                const professorWhatsapp = project.whatsapp;
-                const message = encodeURIComponent(`Olá, professor(a)! Segue o relatório da avaliação de *${formData.participantName}*, referente ao projeto "${project.name}", realizado por ${formData.studentName}. O arquivo PDF está em anexo.`);
-                const whatsappUrl = `https://wa.me/${professorWhatsapp}?text=${message}`;
-                
-                window.open(whatsappUrl, '_blank');
-
-                dataForm.reset();
-
-            } catch (err) {
-                console.error("PDF/WhatsApp Error:", err);
-                statusMessage.textContent = 'Houve um erro ao gerar o PDF. Tente novamente.';
-                statusMessage.className = 'mb-4 font-semibold text-red-600';
-            } finally {
-                submitButton.disabled = false;
-                setTimeout(() => { statusMessage.textContent = ''; }, 10000);
-            }
-        };
-
-        // --- Event Listeners ---
-        studentForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            appState.studentName = document.getElementById('student-name').value;
-            appState.studentId = document.getElementById('student-id').value;
-            appState.studentPhone = document.getElementById('student-phone').value;
-            navigateTo('projectSelection');
-        });
-
-        backToStudentInfoBtn.addEventListener('click', () => navigateTo('studentInfo'));
-        backToProjectSelectionBtn.addEventListener('click', () => navigateTo('projectSelection'));
-
-        dataForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const participantData = {
-                participantName: document.getElementById('participant-name').value,
-                participantAge: document.getElementById('participant-age').value,
-                participantSex: document.getElementById('participant-sex').value,
-                responses: []
+            // --- Estado da Aplicação ---
+            let appState = {
+                studentName: '',
+                studentId: '',
+                studentPhone: '',
+                projectKey: '',
             };
 
-            const project = projectConfig[appState.projectKey];
-            for (let i = 0; i < project.questions.length; i++) {
-                const response = document.querySelector(`input[name="question-${i}"]:checked`);
-                if (response) {
-                    participantData.responses.push(response.value);
-                } else {
-                    statusMessage.textContent = `Por favor, responda a pergunta ${i + 1}.`;
-                    statusMessage.className = 'mb-4 font-semibold text-red-600';
-                    return;
-                }
-            }
-            
-            const fullData = { ...appState, ...participantData };
-            generateAndShare(fullData);
-        });
+            // --- Elementos da DOM ---
+            const screens = {
+                studentInfo: document.getElementById('student-info-screen'),
+                projectSelection: document.getElementById('project-selection-screen'),
+                dataCollection: document.getElementById('data-collection-screen'),
+            };
+            const studentForm = document.getElementById('student-form');
+            const projectButtonsContainer = document.getElementById('project-buttons-container');
+            const dataForm = document.getElementById('data-form');
+            const questionsIntro = document.getElementById('questions-intro');
+            const questionsList = document.getElementById('questions-list');
+            const statusMessage = document.getElementById('status-message');
+            const submitButton = document.getElementById('submit-button');
+            const backToStudentInfoBtn = document.getElementById('back-to-student-info');
+            const backToProjectSelectionBtn = document.getElementById('back-to-project-selection');
 
-        // --- Inicialização ---
-        window.onload = () => {
+            // --- Funções de Navegação ---
+            const navigateTo = (screenName) => {
+                Object.values(screens).forEach(screen => screen.classList.add('hidden'));
+                if (screens[screenName]) {
+                    screens[screenName].classList.remove('hidden');
+                }
+            };
+
+            // --- Renderização e Lógica da UI ---
+            
+            Object.keys(projectConfig).forEach(key => {
+                const project = projectConfig[key];
+                const button = document.createElement('button');
+                button.dataset.projectKey = key;
+                button.className = `p-8 rounded-lg text-white font-bold text-lg shadow-lg transform transition hover:scale-105 bg-${project.color}-600`;
+                button.textContent = project.name;
+                button.addEventListener('click', () => {
+                    appState.projectKey = key;
+                    renderDataCollectionScreen(key);
+                    navigateTo('dataCollection');
+                });
+                projectButtonsContainer.appendChild(button);
+            });
+
+            const renderDataCollectionScreen = (projectKey) => {
+                const project = projectConfig[projectKey];
+                questionsIntro.textContent = `Instrução: ${project.intro}`;
+                questionsIntro.className = `p-4 rounded-md italic ${project.bgColor} ${project.textColor}`;
+                
+                questionsList.innerHTML = '';
+                project.questions.forEach((q, index) => {
+                    const questionDiv = document.createElement('div');
+                    questionDiv.className = 'p-4 border border-gray-200 rounded-lg';
+                    
+                    const questionP = document.createElement('p');
+                    questionP.className = 'font-semibold text-gray-800';
+                    questionP.textContent = `${index + 1}. ${q.adaptada}`;
+                    questionDiv.appendChild(questionP);
+
+                    const radioContainer = document.createElement('div');
+                    radioContainer.className = 'flex flex-wrap gap-x-4 gap-y-2 mt-3';
+
+                    responseOptions.forEach((opt) => {
+                        const label = document.createElement('label');
+                        label.className = 'flex items-center space-x-2 text-gray-700 cursor-pointer';
+                        const radio = document.createElement('input');
+                        radio.type = 'radio';
+                        radio.name = `question-${index}`;
+                        radio.value = opt;
+                        radio.required = true;
+                        radio.className = `form-radio h-5 w-5 text-${project.color}-600`;
+                        const span = document.createElement('span');
+                        span.textContent = opt;
+                        label.appendChild(radio);
+                        label.appendChild(span);
+                        radioContainer.appendChild(label);
+                    });
+                    questionDiv.appendChild(radioContainer);
+                    questionsList.appendChild(questionDiv);
+                });
+            };
+
+            // --- Lógica de Geração de PDF ---
+            const generateAndShare = (formData) => {
+                statusMessage.textContent = 'Gerando PDF...';
+                statusMessage.className = 'mb-4 font-semibold text-blue-600';
+                submitButton.disabled = true;
+
+                try {
+                    const { jsPDF } = window.jspdf; // Usando o objeto global
+                    const project = projectConfig[formData.projectKey];
+                    
+                    const numericResponses = formData.responses.map(r => responseMap[r]);
+                    const positiveScore = numericResponses.slice(0, 7).reduce((a, b) => a + b, 0);
+                    const negativeScore = numericResponses.slice(7, 14).reduce((a, b) => a + b, 0);
+
+                    const docPDF = new jsPDF();
+                    docPDF.setFontSize(18);
+                    docPDF.text("Relatório de Avaliação - CER-Breve-14", 14, 22);
+                    
+                    docPDF.setFontSize(11);
+                    docPDF.setTextColor(100);
+                    docPDF.text(`Projeto: ${project.name}`, 14, 32);
+                    docPDF.text(`Participante: ${formData.participantName}, ${formData.participantAge} anos, ${formData.participantSex}`, 14, 38);
+                    docPDF.text(`Data: ${new Date().toLocaleString('pt-BR')}`, 14, 44);
+                    
+                    docPDF.setFontSize(12);
+                    docPDF.text(`Aluno Avaliador:`, 14, 54);
+                    docPDF.setFontSize(11);
+                    docPDF.setTextColor(100);
+                    docPDF.text(`Nome: ${formData.studentName}`, 14, 60);
+                    docPDF.text(`Matrícula: ${formData.studentId}`, 14, 66);
+                    docPDF.text(`Contato: ${formData.studentPhone}`, 14, 72);
+
+                    docPDF.setFontSize(14);
+                    docPDF.setTextColor(0);
+                    docPDF.text(`Resultados da Escala`, 14, 85);
+                    docPDF.setFontSize(11);
+                    docPDF.text(`CER Positivo (Itens 1-7): ${positiveScore}`, 14, 92);
+                    docPDF.text(`CER Negativo (Itens 8-14): ${negativeScore}`, 14, 98);
+
+                    const tableColumn = ["Pergunta Adaptada", "Resposta"];
+                    const tableRows = formData.responses.map((response, index) => [
+                        project.questions[index].adaptada,
+                        response
+                    ]);
+
+                    docPDF.autoTable({
+                        head: [tableColumn],
+                        body: tableRows,
+                        startY: 105,
+                        styles: { font: 'helvetica', fontSize: 9, cellWidth: 'wrap' },
+                        columnStyles: { 0: { cellWidth: 140 } },
+                        headStyles: { fillColor: [22, 160, 133] },
+                    });
+
+                    docPDF.save(`Relatorio_${formData.participantName.replace(/ /g, '_')}.pdf`);
+                    
+                    statusMessage.textContent = 'PDF baixado! Abrindo WhatsApp para envio...';
+                    statusMessage.className = 'mb-4 font-semibold text-green-600';
+
+                    const professorWhatsapp = project.whatsapp;
+                    const message = encodeURIComponent(`Olá, professor(a)! Segue o relatório da avaliação de *${formData.participantName}*, referente ao projeto "${project.name}", realizado por ${formData.studentName}. O arquivo PDF está em anexo.`);
+                    const whatsappUrl = `https://wa.me/${professorWhatsapp}?text=${message}`;
+                    
+                    window.open(whatsappUrl, '_blank');
+                    dataForm.reset();
+
+                } catch (err) {
+                    console.error("PDF/WhatsApp Error:", err);
+                    statusMessage.textContent = 'Houve um erro ao gerar o PDF. Tente novamente.';
+                    statusMessage.className = 'mb-4 font-semibold text-red-600';
+                } finally {
+                    submitButton.disabled = false;
+                    setTimeout(() => { statusMessage.textContent = ''; }, 10000);
+                }
+            };
+
+            // --- Event Listeners ---
+            studentForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                appState.studentName = document.getElementById('student-name').value;
+                appState.studentId = document.getElementById('student-id').value;
+                appState.studentPhone = document.getElementById('student-phone').value;
+                navigateTo('projectSelection');
+            });
+
+            backToStudentInfoBtn.addEventListener('click', () => navigateTo('studentInfo'));
+            backToProjectSelectionBtn.addEventListener('click', () => navigateTo('projectSelection'));
+
+            dataForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const participantData = {
+                    participantName: document.getElementById('participant-name').value,
+                    participantAge: document.getElementById('participant-age').value,
+                    participantSex: document.getElementById('participant-sex').value,
+                    responses: []
+                };
+
+                const project = projectConfig[appState.projectKey];
+                for (let i = 0; i < project.questions.length; i++) {
+                    const response = document.querySelector(`input[name="question-${i}"]:checked`);
+                    if (response) {
+                        participantData.responses.push(response.value);
+                    } else {
+                        statusMessage.textContent = `Por favor, responda a pergunta ${i + 1}.`;
+                        statusMessage.className = 'mb-4 font-semibold text-red-600';
+                        return;
+                    }
+                }
+                
+                const fullData = { ...appState, ...participantData };
+                generateAndShare(fullData);
+            });
+
+            // --- Inicialização ---
             document.getElementById('loading-screen').classList.add('hidden');
             document.getElementById('app-container').classList.remove('hidden');
             navigateTo('studentInfo');
-        };
-
+        });
     </script>
 </body>
 </html>
